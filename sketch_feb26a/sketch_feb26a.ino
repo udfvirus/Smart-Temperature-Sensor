@@ -15,7 +15,9 @@
 WiFiManager wifiManager;
 DHT dht(DHTPIN, DHTTYPE);
 
-const char* serverUrl = "http://example.com/api/data";
+const char* serverUrl = "http://smart.udfsoft.com/api/sensor/temperature/add";
+
+const char* deviceID = "d9a31cde-bf03-4fd8-a9c6-8a123b6e2ad7";
 
 void setup() {
   // put your setup code here, to run once:
@@ -64,12 +66,11 @@ void loop() {
       Serial.print(humidity);
       Serial.println(" %");
 
-      // sendJsonData(temperature, humidity);
+      sendJsonData(temperature, humidity);
     } else {
       Serial.println("Ошибка чтения DHT11");
     }
-
-
+    
   } else {
     Serial.println("Wi-Fi отключен, жду...");
   }
@@ -77,40 +78,17 @@ void loop() {
   delay(10000);  // Запрос каждые 10 секунд
 }
 
-void getJsonData() {
-  WiFiClient client;
-  HTTPClient http;
+void sendJsonData(float temp, float hum) {
+    WiFiClient client;
+    HTTPClient http;
+    http.begin(client, serverUrl);
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("X-DEVICE-ID", deviceID);
 
-  Serial.println("Отправка запроса к серверу...");
+    String jsonString = "{\"temperature\": " + String(temp) + ", \"humidity\": " + String(hum) + "}";
+    int httpCode = http.POST(jsonString);
 
-  http.begin(client, serverUrl);  // Подключение к серверу
-  int httpCode = http.GET();      // Выполняем GET-запрос
-
-  if (httpCode > 0) {  // Проверяем успешность запроса
     Serial.print("Ответ сервера: ");
     Serial.println(httpCode);
-
-    if (httpCode == HTTP_CODE_OK) {  // 200 OK
-      String payload = http.getString();
-      Serial.println("Полученные данные:");
-      Serial.println(payload);
-
-      // Парсим JSON (если сервер отправляет JSON)
-      DynamicJsonDocument doc(512);  // Размер буфера (увеличить при сложных JSON)
-      DeserializationError error = deserializeJson(doc, payload);
-
-      if (!error) {
-        const char* command = doc["command"];  // Пример ключа "command"
-        Serial.print("Команда от сервера: ");
-        Serial.println(command);
-      } else {
-        Serial.println("Ошибка парсинга JSON!");
-      }
-    }
-  } else {
-    Serial.print("Ошибка запроса: ");
-    Serial.println(http.errorToString(httpCode).c_str());
-  }
-
-  http.end();  // Завершаем соединение
+    http.end();
 }
